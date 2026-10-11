@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B6B52">
+<title>مسبحة الأذكار</title>
+<style>
+html{-webkit-text-size-adjust:100%}
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+@font-face{font-family:'Amiri';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/amiri-arabic-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Amiri';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/amiri-arabic-700-normal.woff2) format('woff2')}
+@font-face{font-family:'Reem Kufi';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/reem-kufi-arabic-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Reem Kufi';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/reem-kufi-arabic-700-normal.woff2) format('woff2')}
+@font-face{font-family:'Tajawal';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/tajawal-arabic-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Tajawal';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/tajawal-arabic-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Tajawal';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/tajawal-arabic-700-normal.woff2) format('woff2')}
+
+/* Layout: one-screen phone app. Counter tab = current dhikr, a ring of beads (one bead per count) around a large tap sphere, then target / rounds / reset. Library tab = add-or-edit form and one list of adhkar. Tab bar at the bottom. */
+:root {
+  --font-ui: 'Tajawal', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Reem Kufi', 'Noto Kufi Arabic', system-ui, sans-serif;
+  --font-dhikr: 'Amiri', 'Noto Naskh Arabic', 'Traditional Arabic', serif;
+
+  --bg: #E8EDE9;
+  --surface: #F6F8F5;
+  --surface-2: #DCE4DE;
+  --ink: #13231E;
+  --muted: #566861;
+  --line: #C6D2CA;
+  --accent: #0B6B52;
+  --on-accent: #F3FBF7;
+  --brass: #A9741C;
+  --bead-off: #BFCCC4;
+  --sphere-hi: #1B8467;
+  --sphere-lo: #0A5F48;
+  --on-btn: #EEFBF5;
+  --shadow: rgba(10, 60, 46, .55);
+  --danger: #A8362F;
+  --toast-act: #8CE6C4;
+
+  --nav-h: 3.6rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1815;
+    --surface: #16241F;
+    --surface-2: #1F312B;
+    --ink: #E3EEE8;
+    --muted: #94A9A0;
+    --line: #2A423B;
+    --accent: #46C29B;
+    --on-accent: #04231A;
+    --brass: #DBA646;
+    --bead-off: #28403A;
+    --sphere-hi: #2C9677;
+    --sphere-lo: #145E49;
+    --on-btn: #EEFBF5;
+    --shadow: rgba(0, 0, 0, .7);
+    --danger: #F28A80;
+    --toast-act: #0B6B52;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1815;
+  --surface: #16241F;
+  --surface-2: #1F312B;
+  --ink: #E3EEE8;
+  --muted: #94A9A0;
+  --line: #2A423B;
+  --accent: #46C29B;
+  --on-accent: #04231A;
+  --brass: #DBA646;
+  --bead-off: #28403A;
+  --sphere-hi: #2C9677;
+  --sphere-lo: #145E49;
+  --on-btn: #EEFBF5;
+  --shadow: rgba(0, 0, 0, .7);
+  --danger: #F28A80;
+  --toast-act: #0B6B52;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { position: relative; height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.views { flex: 1; min-height: 0; overflow-y: auto; padding-inline: 16px; padding-block: 20px 16px; }
+
+/* ---------- Counter ---------- */
+.counter { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+
+.dhikr-pick {
+  background: none; border: 0; padding: 4px 8px; border-radius: .6rem;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  max-width: 30rem; width: 100%;
+}
+.dhikr-label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: .8125rem; font-weight: 500; letter-spacing: .02em; }
+.dhikr-label svg { width: 14px; height: 14px; }
+.dhikr-text {
+  font-family: var(--font-dhikr); font-size: clamp(1.4rem, 5.6vw, 1.9rem); line-height: 1.7; text-wrap: balance;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.dhikr-text[data-long="1"] { font-size: clamp(1.15rem, 4.6vw, 1.4rem); }
+
+.dial { position: relative; flex: none; width: min(100%, 21rem); width: min(100%, 21rem, 46svh); aspect-ratio: 1; }
+.dial svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.b { fill: var(--bead-off); transition: fill .15s ease; }
+.b.on { fill: var(--accent); }
+.b.done { fill: var(--brass); }
+
+.tap {
+  position: absolute; inset: 11%; border-radius: 50%; border: 0;
+  background: radial-gradient(circle at 34% 28%, var(--sphere-hi), var(--sphere-lo) 74%);
+  box-shadow: 0 .9rem 1.6rem -.7rem var(--shadow), inset 0 -.6rem 1.1rem rgba(0,0,0,.2), inset 0 .35rem .8rem rgba(255,255,255,.14);
+  color: var(--on-btn);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  touch-action: manipulation; user-select: none; -webkit-user-select: none;
+  transition: transform .09s ease, box-shadow .09s ease;
+}
+.tap:active:not(:disabled) { transform: scale(.965); box-shadow: 0 .4rem .9rem -.5rem var(--shadow), inset 0 -.6rem 1.1rem rgba(0,0,0,.2), inset 0 .35rem .8rem rgba(255,255,255,.1); }
+.tap:disabled { opacity: .45; cursor: default; }
+.count { font-family: var(--font-display); font-weight: 700; font-size: clamp(3.4rem, 18vw, 5.4rem); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.count[data-len="4"] { font-size: clamp(2.8rem, 14vw, 4.4rem); }
+.count[data-len="5"] { font-size: clamp(2.3rem, 11vw, 3.6rem); }
+.hint { min-height: 1.5em; font-size: .875rem; font-weight: 500; opacity: .9; text-align: center; padding-inline: 12%; }
+
+.meta { width: min(100%, 21rem); display: flex; align-items: center; gap: 24px; }
+.stat { display: flex; flex-direction: column; line-height: 1.3; }
+.stat .label { font-size: .75rem; color: var(--muted); font-weight: 500; letter-spacing: .03em; }
+.stat .val { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.reset {
+  margin-inline-start: auto; min-height: 44px; padding-inline: 1.05rem;
+  display: inline-flex; align-items: center; gap: .45rem;
+  background: transparent; border: 1.5px solid var(--line); border-radius: .75rem; font-weight: 700; color: var(--ink);
+}
+.reset svg { width: 18px; height: 18px; }
+.reset:hover:not(:disabled) { border-color: var(--accent); }
+.reset:disabled { opacity: .4; cursor: default; }
+
+/* ---------- Library ---------- */
+.lib { max-width: 34rem; margin-inline: auto; display: flex; flex-direction: column; gap: 22px; }
+.title { margin: 0; font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; line-height: 1.3; }
+.form { display: flex; flex-direction: column; gap: 10px; }
+.form h2 { margin: 0; font-size: .9375rem; font-weight: 700; color: var(--muted); }
+.form label { font-size: .8125rem; font-weight: 500; color: var(--muted); display: block; margin-bottom: 4px; }
+.form textarea, .form input {
+  width: 100%; background: var(--surface-2); border: 1.5px solid var(--line); border-radius: .65rem; padding: .6rem .8rem;
+}
+.form textarea { font-family: var(--font-dhikr); font-size: 1.2rem; line-height: 1.7; resize: vertical; min-height: 4.6rem; }
+.form input { font-size: 1rem; }
+.form textarea:focus, .form input:focus { outline: none; border-color: var(--accent); }
+.form-row { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.field { flex: 1 1 8rem; min-width: 0; }
+.btn { min-height: 44px; padding-inline: 1.3rem; border-radius: .7rem; font-weight: 700; border: 1.5px solid transparent; }
+.btn.primary { background: var(--accent); color: var(--on-accent); }
+.btn.ghost { background: transparent; border-color: var(--line); color: var(--ink); }
+
+.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: .9rem; overflow: hidden; }
+.item { display: flex; align-items: stretch; border-top: 1px solid var(--line); }
+.item:first-child { border-top: 0; }
+.item.active { background: var(--surface-2); }
+.item-main { flex: 1; min-width: 0; background: none; border: 0; text-align: start; padding: .8rem 1rem; display: flex; flex-direction: column; gap: 2px; }
+.item-text { font-family: var(--font-dhikr); font-size: 1.3rem; line-height: 1.7; overflow-wrap: anywhere; }
+.item-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.item-meta { font-size: .8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pill { font-size: .75rem; font-weight: 700; padding: .05rem .55rem; border-radius: 999px; background: var(--accent); color: var(--on-accent); }
+.item-actions { display: flex; align-items: center; gap: 2px; padding-inline: 6px; }
+.icon { min-width: 44px; min-height: 44px; padding-inline: 8px; background: none; border: 0; border-radius: .6rem; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; font-size: .8125rem; font-weight: 700; }
+.icon svg { width: 20px; height: 20px; }
+.icon:hover { color: var(--ink); }
+.icon.confirm { color: var(--danger); }
+.empty { padding: 1.4rem 1rem; color: var(--muted); text-align: center; }
+
+/* ---------- Nav + toast ---------- */
+.nav { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border-top: 1px solid var(--line); }
+.nav button {
+  min-height: var(--nav-h); background: none; border: 0; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: .8125rem; font-weight: 500;
+}
+.nav button svg { width: 24px; height: 24px; }
+.nav button[aria-selected="true"] { color: var(--accent); font-weight: 700; box-shadow: inset 0 2px 0 var(--accent); }
+
+.toast {
+  position: absolute; inset-inline: 16px; bottom: calc(var(--nav-h) + .75rem); z-index: 5;
+  max-width: 30rem; margin-inline: auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--ink); color: var(--bg); padding: .45rem .5rem .45rem 1rem; padding-inline-start: 1rem; border-radius: .75rem;
+  box-shadow: 0 .6rem 1.4rem -.5rem var(--shadow);
+}
+.toast button { background: none; border: 0; min-height: 40px; padding-inline: .8rem; font-weight: 700; color: var(--toast-act); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tap, .b { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="app" dir="rtl" lang="ar">
+  <main class="views">
+    <section class="view counter" id="v-counter" role="tabpanel" aria-labelledby="t-counter">
+      <button class="dhikr-pick" id="dhikr-pick" type="button" aria-label="تغيير الذكر الحالي">
+        <span class="dhikr-label">الذكر الحالي
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </span>
+        <span class="dhikr-text" id="dhikr" dir="auto"></span>
+      </button>
+
+      <div class="dial">
+        <svg id="ring" viewBox="0 0 320 320" aria-hidden="true"></svg>
+        <button class="tap" id="tap" type="button">
+          <span class="count" id="count">٠</span>
+          <span class="hint" id="hint"></span>
+        </button>
+      </div>
+
+      <div class="meta">
+        <div class="stat"><span class="label">الهدف</span><span class="val" id="s-target">٣٣</span></div>
+        <div class="stat"><span class="label">الدورات</span><span class="val" id="s-rounds">٠</span></div>
+        <button class="reset" id="reset" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+          تصفير
+        </button>
+      </div>
+    </section>
+
+    <section class="view lib" id="v-lib" role="tabpanel" aria-labelledby="t-lib" hidden>
+      <h1 class="title">الأذكار</h1>
+      <form class="form" id="form" autocomplete="off">
+        <h2 id="form-title">ذكر جديد</h2>
+        <div>
+          <label for="f-text">نص الذكر</label>
+          <textarea id="f-text" rows="2" maxlength="300" dir="auto" required placeholder="مثال: اللهم أعنّي على ذكرك وشكرك وحسن عبادتك"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="f-target">العدد المطلوب</label>
+            <input id="f-target" type="number" inputmode="numeric" min="1" max="100000" placeholder="اتركه فارغًا للعدّ المفتوح">
+          </div>
+          <button class="btn primary" id="f-submit" type="submit">إضافة</button>
+          <button class="btn ghost" id="f-cancel" type="button" hidden>إلغاء</button>
+        </div>
+      </form>
+      <ul class="list" id="list"></ul>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" hidden>
+    <span id="toast-msg"></span>
+    <button type="button" id="toast-act" hidden></button>
+  </div>
+
+  <nav class="nav" role="tablist" aria-label="التنقل">
+    <button type="button" role="tab" id="t-counter" aria-controls="v-counter" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="4.5" r="1.7"/><circle cx="18.2" cy="8.2" r="1.7"/><circle cx="18.2" cy="15.8" r="1.7"/><circle cx="12" cy="19.5" r="1.7"/><circle cx="5.8" cy="15.8" r="1.7"/><circle cx="5.8" cy="8.2" r="1.7"/></svg>
+      المسبحة
+    </button>
+    <button type="button" role="tab" id="t-lib" aria-controls="v-lib" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>
+      الأذكار
+    </button>
+  </nav>
+</div>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  document.documentElement.lang = 'ar';
+  document.documentElement.dir = 'rtl';
+
+  var KEY = 'misbaha-tasbih-v1';
+  var DB_DOC = 'tasbih';
+  var NS = 'http://www.w3.org/2000/svg';
+  var ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
+  var ICON_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+
+  function fmt(n) { return Number(n).toLocaleString('ar-EG', { useGrouping: false }); }
+  function clampInt(v, lo, hi) {
+    var n = Math.floor(Number(v));
+    if (!isFinite(n)) n = lo;
+    return Math.min(hi, Math.max(lo, n));
+  }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function uid() { return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  /* ---------- State ---------- */
+  function defaults() {
+    return {
+      v: 1, active: 'z1',
+      items: [
+        { id: 'z1', text: 'سبحان الله', target: 33, count: 0, rounds: 0 },
+        { id: 'z2', text: 'الحمد لله', target: 33, count: 0, rounds: 0 },
+        { id: 'z3', text: 'الله أكبر', target: 34, count: 0, rounds: 0 },
+        { id: 'z4', text: 'أستغفر الله', target: 100, count: 0, rounds: 0 }
+      ]
+    };
+  }
+  function normalize(d) {
+    if (!d || !Array.isArray(d.items)) return null;
+    var items = [];
+    d.items.forEach(function (i) {
+      if (i && typeof i.id === 'string' && typeof i.text === 'string' && i.text.trim()) {
+        items.push({
+          id: i.id, text: i.text.slice(0, 300),
+          target: clampInt(i.target, 0, 100000),
+          count: clampInt(i.count, 0, 1e9),
+          rounds: clampInt(i.rounds, 0, 1e9)
+        });
+      }
+    });
+    var ok = items.some(function (i) { return i.id === d.active; });
+    return { v: 1, active: ok ? d.active : (items[0] ? items[0].id : null), items: items };
+  }
+  function readLocal() {
+    try { var raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+  var localState = normalize(readLocal());
+  var hadLocal = !!localState;
+  var state = localState || defaults();
+  function active() {
+    for (var i = 0; i < state.items.length; i++) if (state.items[i].id === state.active) return state.items[i];
+    return null;
+  }
+
+  /* ---------- Persistence ---------- */
+  var dbDoc = null, saveTimer = null, saving = false, pending = false, dirty = false;
+  function persist() {
+    dirty = true;
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    if (!dbDoc) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flush, 700);
+  }
+  function flush() {
+    if (!dbDoc) return;
+    if (saving) { pending = true; return; }
+    saving = true;
+    var body = JSON.parse(JSON.stringify(state));
+    dbDoc.set(body).catch(function () {}).then(function () {
+      saving = false;
+      if (pending) { pending = false; flush(); }
+    });
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden' && dbDoc && dirty) { clearTimeout(saveTimer); flush(); }
+  });
+
+  /* ---------- Feedback ---------- */
+  function buzz(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+  var toastTimer = null;
+  function hideToast() { $('#toast').hidden = true; }
+  function toast(msg, actionLabel, action) {
+    $('#toast-msg').textContent = msg;
+    var b = $('#toast-act');
+    if (actionLabel) {
+      b.hidden = false; b.textContent = actionLabel;
+      b.onclick = function () { action(); hideToast(); };
+    } else { b.hidden = true; b.onclick = null; }
+    $('#toast').hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, actionLabel ? 6000 : 2200);
+  }
+
+  /* ---------- Counter ---------- */
+  var ring = $('#ring'), ringN = 0, beadEls = [];
+  function buildRing(N) {
+    ring.textContent = '';
+    beadEls = [];
+    var R = 146, c = 160, spacing = 2 * Math.PI * R / N;
+    var r = Math.max(2.2, Math.min(7, spacing * 0.3));
+    for (var i = 0; i < N; i++) {
+      var a = -Math.PI / 2 + i * 2 * Math.PI / N;
+      var e = document.createElementNS(NS, 'circle');
+      e.setAttribute('cx', (c + R * Math.cos(a)).toFixed(2));
+      e.setAttribute('cy', (c + R * Math.sin(a)).toFixed(2));
+      e.setAttribute('r', r.toFixed(2));
+      e.setAttribute('class', 'b');
+      ring.appendChild(e);
+      beadEls.push(e);
+    }
+    ringN = N;
+  }
+  function beadsFor(it) {
+    if (!it) return { N: 33, filled: 0, done: false };
+    if (it.target >= 1 && it.target <= 100) return { N: it.target, filled: Math.min(it.count, it.target), done: it.count >= it.target };
+    if (it.target > 100) return { N: 33, filled: Math.min(33, Math.floor(it.count / it.target * 33)), done: it.count >= it.target };
+    var f = it.count % 33;
+    if (it.count > 0 && f === 0) f = 33;
+    return { N: 33, filled: f, done: false };
+  }
+  function paintRing(b) {
+    if (b.N !== ringN) buildRing(b.N);
+    for (var i = 0; i < b.N; i++) {
+      beadEls[i].setAttribute('class', i < b.filled ? (b.done ? 'b done' : 'b on') : 'b');
+    }
+  }
+
+  var tapBtn = $('#tap'), resetBtn = $('#reset');
+  function renderCounter() {
+    var it = active();
+    var b = beadsFor(it);
+    paintRing(b);
+    var text = it ? it.text : 'لا يوجد ذكر محدد';
+    var d = $('#dhikr');
+    d.textContent = text;
+    d.dataset.long = text.length > 70 ? '1' : '';
+    var c = it ? it.count : 0;
+    var cn = $('#count');
+    cn.textContent = fmt(c);
+    cn.dataset.len = String(Math.min(String(c).length, 5));
+    $('#hint').textContent = !it ? 'أضف ذكرًا من تبويب الأذكار' : (b.done ? 'اكتملت الدورة' : (c === 0 ? 'المس للعد' : ''));
+    tapBtn.disabled = !it;
+    tapBtn.setAttribute('aria-label', it ? ('عدّ. العدد الحالي ' + fmt(c) + (it.target ? ' من ' + fmt(it.target) : '')) : 'العدّ غير متاح');
+    $('#s-target').textContent = it ? (it.target ? fmt(it.target) : 'مفتوح') : '—';
+    $('#s-rounds').textContent = it && it.target ? fmt(it.rounds) : '—';
+    resetBtn.disabled = !it || (it.count === 0 && it.rounds === 0);
+  }
+
+  tapBtn.addEventListener('click', function () {
+    var it = active();
+    if (!it) return;
+    if (it.target > 0 && it.count >= it.target) it.count = 0;
+    it.count += 1;
+    var completed = it.target > 0 && it.count === it.target;
+    if (completed) { it.rounds += 1; buzz([30, 60, 30]); } else { buzz(8); }
+    persist();
+    renderCounter();
+  });
+
+  resetBtn.addEventListener('click', function () {
+    var it = active();
+    if (!it) return;
+    var snap = { id: it.id, count: it.count, rounds: it.rounds };
+    it.count = 0; it.rounds = 0;
+    persist(); renderAll();
+    toast('تم تصفير العداد', 'تراجع', function () {
+      for (var i = 0; i < state.items.length; i++) {
+        if (state.items[i].id === snap.id) {
+          state.items[i].count = snap.count; state.items[i].rounds = snap.rounds;
+        }
+      }
+      persist(); renderAll();
+    });
+  });
+
+  /* ---------- Tabs ---------- */
+  function showTab(name) {
+    var isCounter = name === 'counter';
+    $('#v-counter').hidden = !isCounter;
+    $('#v-lib').hidden = isCounter;
+    $('#t-counter').setAttribute('aria-selected', String(isCounter));
+    $('#t-lib').setAttribute('aria-selected', String(!isCounter));
+    document.querySelector('.views').scrollTop = 0;
+  }
+  $('#t-counter').addEventListener('click', function () { showTab('counter'); });
+  $('#t-lib').addEventListener('click', function () { showTab('lib'); });
+  $('#dhikr-pick').addEventListener('click', function () { showTab('lib'); });
+
+  /* ---------- Library ---------- */
+  var editingId = null, pendingDel = null, delTimer = null;
+
+  function metaText(it) {
+    var parts = [it.target ? 'الهدف ' + fmt(it.target) : 'عدّ مفتوح'];
+    if (it.rounds > 0) parts.push('الدورات ' + fmt(it.rounds));
+    if (it.count > 0) parts.push('الآن ' + fmt(it.count));
+    return parts.join(' · ');
+  }
+
+  function renderList() {
+    var ul = $('#list');
+    ul.textContent = '';
+    if (!state.items.length) {
+      ul.appendChild(el('li', 'empty', 'لا توجد أذكار بعد. اكتب أول ذكر في الأعلى ليظهر هنا.'));
+      return;
+    }
+    state.items.forEach(function (it) {
+      var isActive = it.id === state.active;
+      var li = el('li', 'item' + (isActive ? ' active' : ''));
+
+      var main = el('button', 'item-main');
+      main.type = 'button'; main.dataset.act = 'pick'; main.dataset.id = it.id;
+      var txt = el('span', 'item-text', it.text);
+      txt.setAttribute('dir', 'auto');
+      var row = el('span', 'item-row');
+      if (isActive) row.appendChild(el('span', 'pill', 'الذكر الحالي'));
+      row.appendChild(el('span', 'item-meta', metaText(it)));
+      main.appendChild(txt);
+      main.appendChild(row);
+
+      var acts = el('div', 'item-actions');
+      var short = it.text.length > 30 ? it.text.slice(0, 30) + '…' : it.text;
+      var eb = el('button', 'icon');
+      eb.type = 'button'; eb.dataset.act = 'edit'; eb.dataset.id = it.id;
+      eb.setAttribute('aria-label', 'تعديل: ' + short);
+      eb.innerHTML = ICON_EDIT;
+      var confirming = pendingDel === it.id;
+      var db_ = el('button', 'icon' + (confirming ? ' confirm' : ''));
+      db_.type = 'button'; db_.dataset.act = 'del'; db_.dataset.id = it.id;
+      db_.setAttribute('aria-label', (confirming ? 'تأكيد حذف: ' : 'حذف: ') + short);
+      if (confirming) db_.textContent = 'تأكيد الحذف'; else db_.innerHTML = ICON_DEL;
+      acts.appendChild(eb);
+      acts.appendChild(db_);
+
+      li.appendChild(main);
+      li.appendChild(acts);
+      ul.appendChild(li);
+    });
+  }
+
+  function resetForm() {
+    editingId = null;
+    $('#f-text').value = '';
+    $('#f-target').value = '';
+    $('#form-title').textContent = 'ذكر جديد';
+    $('#f-submit').textContent = 'إضافة';
+    $('#f-cancel').hidden = true;
+  }
+  function startEdit(id) {
+    var it = null;
+    state.items.forEach(function (i) { if (i.id === id) it = i; });
+    if (!it) return;
+    editingId = id;
+    $('#f-text').value = it.text;
+    $('#f-target').value = it.target ? String(it.target) : '';
+    $('#form-title').textContent = 'تعديل الذكر';
+    $('#f-submit').textContent = 'حفظ التعديل';
+    $('#f-cancel').hidden = false;
+    $('#form').scrollIntoView({ block: 'start' });
+    $('#f-text').focus();
+  }
+  $('#f-cancel').addEventListener('click', resetForm);
+
+  $('#form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var text = $('#f-text').value.trim();
+    if (!text) { $('#f-text').focus(); return; }
+    var raw = $('#f-target').value.trim();
+    var target = raw === '' ? 0 : clampInt(raw, 1, 100000);
+    if (editingId) {
+      state.items.forEach(function (i) {
+        if (i.id === editingId) {
+          i.text = text; i.target = target;
+          if (target > 0 && i.count > target) i.count = target;
+        }
+      });
+      toast('تم حفظ التعديل');
+    } else {
+      var it = { id: uid(), text: text, target: target, count: 0, rounds: 0 };
+      state.items.unshift(it);
+      if (!state.active) state.active = it.id;
+      toast('تمت إضافة الذكر');
+    }
+    resetForm();
+    persist(); renderAll();
+  });
+
+  $('#list').addEventListener('click', function (e) {
+    var t = e.target.closest('[data-act]');
+    if (!t) return;
+    var id = t.dataset.id, act = t.dataset.act;
+    if (act === 'pick') {
+      state.active = id; pendingDel = null;
+      persist(); renderAll(); showTab('counter');
+    } else if (act === 'edit') {
+      startEdit(id);
+    } else if (act === 'del') {
+      if (pendingDel === id) {
+        clearTimeout(delTimer); pendingDel = null;
+        state.items = state.items.filter(function (i) { return i.id !== id; });
+        if (editingId === id) resetForm();
+        if (state.active === id) state.active = state.items[0] ? state.items[0].id : null;
+        persist(); renderAll();
+        toast('تم حذف الذكر');
+      } else {
+        pendingDel = id;
+        clearTimeout(delTimer);
+        delTimer = setTimeout(function () { pendingDel = null; renderList(); }, 3500);
+        renderList();
+      }
+    }
+  });
+
+  function renderAll() { renderCounter(); renderList(); }
+  renderAll();
+
+})();
+</script>
+</body>
+</html>

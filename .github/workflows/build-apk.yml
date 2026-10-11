@@ -91,7 +91,6 @@ jobs:
 
           step('launcher icon', function () {
             const res = path.join(root, 'res');
-            const bg = head + '  <path android:fillColor="#0B6B52" android:pathData="M0,0h108v108h-108z"/>\n</vector>\n';
             function circle(x, y, r, color) {
               return '  <path android:fillColor="' + color + '" android:pathData="M' + (x - r).toFixed(2) + ',' + y.toFixed(2) +
                 'a' + r + ',' + r + ' 0 1,0 ' + (2 * r).toFixed(2) + ',0a' + r + ',' + r + ' 0 1,0 ' + (-2 * r).toFixed(2) + ',0z"/>\n';
@@ -104,11 +103,20 @@ jobs:
             }
             fg += circle(54, 54, 14, '#EEFBF5');
             fg += '</vector>\n';
-            const bgFiles = walk(res, 'ic_launcher_background.xml', []);
-            const fgFiles = walk(res, 'ic_launcher_foreground.xml', []);
-            if (!bgFiles.length || !fgFiles.length) throw new Error('template icon files not found');
-            bgFiles.forEach(function (f) { fs.writeFileSync(f, bg); });
-            fgFiles.forEach(function (f) { fs.writeFileSync(f, fg); });
+            fs.mkdirSync(path.join(res, 'drawable'), { recursive: true });
+            fs.mkdirSync(path.join(res, 'values'), { recursive: true });
+            fs.writeFileSync(path.join(res, 'drawable', 'misbaha_icon_foreground.xml'), fg);
+            fs.writeFileSync(path.join(res, 'values', 'misbaha_icon_colors.xml'),
+              '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="misbaha_icon_bg">#0B6B52</color>\n</resources>\n');
+            const adaptive = '<?xml version="1.0" encoding="utf-8"?>\n' +
+              '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n' +
+              '    <background android:drawable="@color/misbaha_icon_bg"/>\n' +
+              '    <foreground android:drawable="@drawable/misbaha_icon_foreground"/>\n' +
+              '</adaptive-icon>\n';
+            const dir26 = path.join(res, 'mipmap-anydpi-v26');
+            fs.mkdirSync(dir26, { recursive: true });
+            fs.writeFileSync(path.join(dir26, 'ic_launcher.xml'), adaptive);
+            fs.writeFileSync(path.join(dir26, 'ic_launcher_round.xml'), adaptive);
           });
 
           step('vibrate permission', function () {

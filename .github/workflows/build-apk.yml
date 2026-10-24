@@ -33,7 +33,8 @@ jobs:
             "private": true,
             "dependencies": {
               "@capacitor/android": "^7.0.0",
-              "@capacitor/core": "^7.0.0"
+              "@capacitor/core": "^7.0.0",
+              "@capacitor/local-notifications": "^7.0.0"
             },
             "devDependencies": {
               "@capacitor/cli": "^7.0.0",
@@ -50,6 +51,12 @@ jobs:
             "webDir": "www",
             "android": {
               "adjustMarginsForEdgeToEdge": "auto"
+            },
+            "plugins": {
+              "LocalNotifications": {
+                "smallIcon": "ic_stat_misbaha",
+                "iconColor": "#0B6B52"
+              }
             }
           }
           EOF
@@ -72,40 +79,39 @@ jobs:
           const fs = require('fs');
           const path = require('path');
           const root = 'android/app/src/main';
+          const keyPresent = process.env.KS_PRESENT === '1';
 
-          function step(label, fn) {
+          function step(label, fn, required) {
             try { fn(); console.log('ok: ' + label); }
-            catch (e) { console.warn('skipped ' + label + ': ' + e.message); }
-          }
-          function walk(dir, name, hits) {
-            fs.readdirSync(dir, { withFileTypes: true }).forEach(function (d) {
-              const p = path.join(dir, d.name);
-              if (d.isDirectory()) walk(p, name, hits);
-              else if (d.name === name) hits.push(p);
-            });
-            return hits;
+            catch (e) {
+              console.warn('skipped ' + label + ': ' + e.message);
+              if (required) process.exit(1);
+            }
           }
           const head = '<?xml version="1.0" encoding="utf-8"?>\n' +
-            '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" ' +
-            'android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">\n';
+            '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="@W@dp" ' +
+            'android:height="@W@dp" android:viewportWidth="@W@" android:viewportHeight="@W@">\n';
+          function vhead(w) { return head.split('@W@').join(String(w)); }
+          function circle(x, y, r, color) {
+            return '  <path android:fillColor="' + color + '" android:pathData="M' + (x - r).toFixed(2) + ',' + y.toFixed(2) +
+              'a' + r + ',' + r + ' 0 1,0 ' + (2 * r).toFixed(2) + ',0a' + r + ',' + r + ' 0 1,0 ' + (-2 * r).toFixed(2) + ',0z"/>\n';
+          }
+          function ring(w, c, R, r, N, first, other, centerR, centerColor) {
+            let s = vhead(w);
+            for (let i = 0; i < N; i++) {
+              const a = -Math.PI / 2 + i * 2 * Math.PI / N;
+              s += circle(c + R * Math.cos(a), c + R * Math.sin(a), r, i === 0 ? first : other);
+            }
+            s += circle(c, c, centerR, centerColor);
+            return s + '</vector>\n';
+          }
 
           step('launcher icon', function () {
             const res = path.join(root, 'res');
-            function circle(x, y, r, color) {
-              return '  <path android:fillColor="' + color + '" android:pathData="M' + (x - r).toFixed(2) + ',' + y.toFixed(2) +
-                'a' + r + ',' + r + ' 0 1,0 ' + (2 * r).toFixed(2) + ',0a' + r + ',' + r + ' 0 1,0 ' + (-2 * r).toFixed(2) + ',0z"/>\n';
-            }
-            let fg = head;
-            const N = 12, R = 27;
-            for (let i = 0; i < N; i++) {
-              const a = -Math.PI / 2 + i * 2 * Math.PI / N;
-              fg += circle(54 + R * Math.cos(a), 54 + R * Math.sin(a), 4.6, i === 0 ? '#DBA646' : '#8CE6C4');
-            }
-            fg += circle(54, 54, 14, '#EEFBF5');
-            fg += '</vector>\n';
             fs.mkdirSync(path.join(res, 'drawable'), { recursive: true });
             fs.mkdirSync(path.join(res, 'values'), { recursive: true });
-            fs.writeFileSync(path.join(res, 'drawable', 'misbaha_icon_foreground.xml'), fg);
+            fs.writeFileSync(path.join(res, 'drawable', 'misbaha_icon_foreground.xml'),
+              ring(108, 54, 27, 4.6, 12, '#DBA646', '#8CE6C4', 14, '#EEFBF5'));
             fs.writeFileSync(path.join(res, 'values', 'misbaha_icon_colors.xml'),
               '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="misbaha_icon_bg">#0B6B52</color>\n</resources>\n');
             const adaptive = '<?xml version="1.0" encoding="utf-8"?>\n' +
@@ -119,14 +125,50 @@ jobs:
             fs.writeFileSync(path.join(dir26, 'ic_launcher_round.xml'), adaptive);
           });
 
-          step('vibrate permission', function () {
+          step('notification icon', function () {
+            const res = path.join(root, 'res', 'drawable');
+            fs.mkdirSync(res, { recursive: true });
+            fs.writeFileSync(path.join(res, 'ic_stat_misbaha.xml'), ring(24, 12, 8, 1.9, 8, '#FFFFFF', '#FFFFFF', 3, '#FFFFFF'));
+          });
+
+          step('permissions', function () {
             const f = path.join(root, 'AndroidManifest.xml');
             let m = fs.readFileSync(f, 'utf8');
-            if (m.indexOf('android.permission.VIBRATE') === -1) {
-              m = m.replace('</manifest>', '    <uses-permission android:name="android.permission.VIBRATE" />\n</manifest>');
-              fs.writeFileSync(f, m);
-            }
+            ['VIBRATE', 'POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED', 'USE_EXACT_ALARM'].forEach(function (p) {
+              if (m.indexOf('android.permission.' + p) === -1) {
+                m = m.replace('</manifest>', '    <uses-permission android:name="android.permission.' + p + '" />\n</manifest>');
+              }
+            });
+            fs.writeFileSync(f, m);
           });
+
+          step('version number', function () {
+            const f = 'android/app/build.gradle';
+            const run = String(parseInt(process.env.RUN_NUMBER || '1', 10) || 1);
+            let g = fs.readFileSync(f, 'utf8');
+            if (!/versionCode\s*=?\s*\d+/.test(g)) throw new Error('versionCode not found');
+            g = g.replace(/versionCode\s*=?\s*\d+/, 'versionCode ' + run);
+            g = g.replace(/versionName\s*=?\s*"[^"]*"/, 'versionName "1.' + run + '"');
+            fs.writeFileSync(f, g);
+          }, false);
+
+          step('fixed signing key', function () {
+            if (!keyPresent) { console.log('no signing key provided, using the temporary debug key'); return; }
+            const f = 'android/app/build.gradle';
+            let g = fs.readFileSync(f, 'utf8');
+            if (g.indexOf('misbahaSigning') !== -1) return;
+            if (!/android\s*\{/.test(g)) throw new Error('android block not found');
+            if (!/buildTypes\s*\{/.test(g)) throw new Error('buildTypes block not found');
+            const sc = '\n    signingConfigs {\n        misbahaSigning {\n' +
+              '            storeFile file(System.getenv("KS_FILE"))\n' +
+              '            storePassword System.getenv("KS_PASS")\n' +
+              '            keyAlias System.getenv("KS_ALIAS")\n' +
+              '            keyPassword System.getenv("KS_PASS")\n' +
+              '        }\n    }\n';
+            g = g.replace(/android\s*\{/, function (m) { return m + sc; });
+            g = g.replace(/buildTypes\s*\{/, function (m) { return m + '\n        debug {\n            signingConfig signingConfigs.misbahaSigning\n        }'; });
+            fs.writeFileSync(f, g);
+          }, true);
           EOF
           test -f index.html || { echo "index.html is missing from the repository root"; exit 1; }
           cp index.html www/index.html
@@ -140,7 +182,23 @@ jobs:
       - name: Add the Android platform
         run: npx cap add android
 
-      - name: Apply icon and permissions
+      - name: Prepare the signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/misbaha.keystore"
+            echo "KS_PRESENT=1" >> "$GITHUB_ENV"
+            echo "KS_FILE=$GITHUB_WORKSPACE/misbaha.keystore" >> "$GITHUB_ENV"
+            echo "KS_PASS=8fedf4ddd71119b6cb772b5a" >> "$GITHUB_ENV"
+            echo "KS_ALIAS=misbaha" >> "$GITHUB_ENV"
+          else
+            echo "::warning::The KEYSTORE_B64 secret is missing. This APK gets a temporary key and cannot be installed over an older copy."
+          fi
+
+      - name: Apply icon, permissions, version and signing
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
         run: node scripts/patch-android.js
 
       - name: Sync web files
@@ -154,6 +212,12 @@ jobs:
 
       - name: Name the file
         run: cp android/app/build/outputs/apk/debug/app-debug.apk Misbaha.apk
+
+      - name: Show the signing certificate
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | tail -1)
+          if [ -n "$APKSIGNER" ]; then "$APKSIGNER" verify --print-certs Misbaha.apk | head -5; fi
+        continue-on-error: true
 
       - uses: actions/upload-artifact@v4
         with:

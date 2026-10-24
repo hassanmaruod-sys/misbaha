@@ -28,7 +28,7 @@ jobs:
           mkdir -p scripts www
           cat > package.json <<'EOF'
           {
-            "name": "misbaha-tasbih",
+            "name": "misbaha-daily",
             "version": "1.0.0",
             "private": true,
             "dependencies": {
@@ -46,8 +46,8 @@ jobs:
           EOF
           cat > capacitor.config.json <<'EOF'
           {
-            "appId": "app.misbaha.tasbih",
-            "appName": "مسبحة الأذكار",
+            "appId": "app.misbaha.daily",
+            "appName": "مسبحة اليوم",
             "webDir": "www",
             "android": {
               "adjustMarginsForEdgeToEdge": "auto"
